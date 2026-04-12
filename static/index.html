@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MPC — Metastable Propositional Calculus</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117; --bg2: #1a1d27; --bg3: #22263a;
+    --border: #2e3250; --text: #e2e6f0; --muted: #7a82a8;
+    --c: #4ade80; --s: #facc15; --k: #f87171; --r: #94a3b8;
+    --accent: #6366f1;
+    font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header { border-bottom: 1px solid var(--border); padding: 1rem 2rem;
+           display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  header h1 { font-size: 1.1rem; letter-spacing: .05em; }
+  header span { color: var(--muted); font-size: .85rem; }
+  .badge { background: var(--bg3); border: 1px solid var(--border);
+           padding: .2rem .6rem; border-radius: 4px; font-size: .75rem; }
+
+  nav { display: flex; gap: 0; border-bottom: 1px solid var(--border);
+        padding: 0 2rem; overflow-x: auto; }
+  nav button { background: none; border: none; color: var(--muted);
+               padding: .75rem 1.2rem; cursor: pointer; font: inherit;
+               font-size: .85rem; border-bottom: 2px solid transparent;
+               white-space: nowrap; transition: color .15s; }
+  nav button.active { color: var(--text); border-bottom-color: var(--accent); }
+  nav button:hover  { color: var(--text); }
+
+  .tab { display: none; padding: 1.5rem 2rem; }
+  .tab.active { display: block; }
+
+  textarea, input[type=text], input[type=number], input[type=password], select {
+    background: var(--bg2); border: 1px solid var(--border);
+    color: var(--text); font: inherit; font-size: .85rem;
+    padding: .6rem .8rem; border-radius: 6px; width: 100%;
+  }
+  textarea { resize: vertical; min-height: 140px; }
+  select { cursor: pointer; }
+  select option { background: var(--bg2); }
+
+  button.run { background: var(--accent); color: #fff; border: none;
+               padding: .55rem 1.4rem; border-radius: 6px; cursor: pointer;
+               font: inherit; font-size: .85rem; margin-top: .6rem; }
+  button.run:disabled { opacity: .5; cursor: not-allowed; }
+  button.sm  { background: var(--bg3); color: var(--muted); border: 1px solid var(--border);
+               padding: .3rem .8rem; border-radius: 4px; cursor: pointer; font: inherit; font-size: .75rem; }
+  button.sm:hover { color: var(--text); }
+
+  label { font-size: .8rem; color: var(--muted); display: block; margin-bottom: .3rem; }
+
+  /* ── Provider selector ── */
+  .provider-bar {
+    display: flex; gap: .4rem; flex-wrap: wrap;
+    margin-bottom: 1rem; align-items: center;
+  }
+  .provider-bar > span { font-size: .75rem; color: var(--muted); margin-right: .2rem; }
+  .prov-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--muted);
+    padding: .3rem .8rem; border-radius: 4px; cursor: pointer; font: inherit;
+    font-size: .8rem; transition: all .15s;
+  }
+  .prov-btn:hover  { color: var(--text); }
+  .prov-btn.active { color: #fff; border-color: transparent; }
+  .prov-btn[data-p="anthropic"].active { background: #6d28d9; }
+  .prov-btn[data-p="google"].active    { background: #1d7d41; }
+  .prov-btn[data-p="openai"].active    { background: #1c5c87; }
+  .prov-btn[data-p="kimi"].active      { background: #9d4a00; }
+  .prov-btn[data-p="ollama"].active    { background: #2b4b6f; }
+
+  .model-key-row {
+    display: flex; gap: .7rem; flex-wrap: wrap;
+    align-items: flex-end; margin-bottom: 1.2rem;
+  }
+  .model-key-row > div { display: flex; flex-direction: column; gap: .3rem; }
+  .model-key-row .model-col { min-width: 280px; flex: 1; }
+  .model-key-row .key-col   { min-width: 240px; flex: 2; }
+  .key-col .key-inner { display: flex; gap: .4rem; align-items: flex-end; }
+  .key-col .key-inner input { flex: 1; }
+  .key-saved-badge {
+    font-size: .7rem; padding: .25rem .5rem; border-radius: 4px;
+    background: #052e16; color: var(--c); border: 1px solid #166534;
+    white-space: nowrap; align-self: flex-end; display: none;
+  }
+  .key-col .env-hint { font-size: .7rem; color: var(--muted); margin-top: .2rem; }
+  .refresh-btn { background: none; border: 1px solid var(--border); color: var(--muted);
+                 padding: .3rem .6rem; border-radius: 4px; cursor: pointer; font: inherit;
+                 font-size: .75rem; white-space: nowrap; align-self: flex-end; }
+  .refresh-btn:hover { color: var(--text); }
+
+  /* ── chips ── */
+  .chip { display: inline-block; padding: .15rem .5rem; border-radius: 4px;
+          font-size: .75rem; font-weight: 700; letter-spacing: .04em; }
+  .chip-c { background: #052e16; color: var(--c); border: 1px solid #166534; }
+  .chip-s { background: #422006; color: var(--s); border: 1px solid #854d0e; }
+  .chip-k { background: #450a0a; color: var(--k); border: 1px solid #991b1b; }
+  .chip-r { background: #1e293b; color: var(--r); border: 1px solid #334155; }
+
+  /* ── hypothesis cards ── */
+  .h-card { background: var(--bg2); border: 1px solid var(--border);
+            border-radius: 8px; padding: .9rem 1rem; margin-bottom: .6rem;
+            display: grid; grid-template-columns: 2.5rem 1fr auto;
+            gap: .5rem; align-items: start; }
+  .h-id  { color: var(--muted); font-size: .8rem; padding-top: .1rem; }
+  .h-text { font-size: .85rem; line-height: 1.5; }
+  .h-rationale { font-size: .75rem; color: var(--muted); margin-top: .3rem; }
+  .h-meta { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .3rem; }
+
+  /* ── matrix ── */
+  .matrix-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; font-size: .78rem; }
+  th, td { border: 1px solid var(--border); padding: .3rem .6rem; text-align: center; }
+  th { background: var(--bg3); color: var(--muted); }
+  td.compat   { color: var(--c); }
+  td.incompat { color: var(--k); }
+
+  /* ── energy bar ── */
+  .energy-bar-wrap { background: var(--bg3); border-radius: 6px; height: 8px;
+                     overflow: hidden; margin: .4rem 0; }
+  .energy-bar { height: 100%; background: var(--accent); border-radius: 6px; transition: width .4s; }
+
+  /* ── stat boxes ── */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .stat-box { background: var(--bg2); border: 1px solid var(--border);
+              border-radius: 8px; padding: .8rem 1rem; }
+  .stat-box .val { font-size: 1.6rem; font-weight: 700; }
+  .stat-box .lbl { font-size: .75rem; color: var(--muted); margin-top: .2rem; }
+
+  /* ── claims ── */
+  .claim-row { display: flex; align-items: flex-start; gap: .8rem;
+               background: var(--bg2); border: 1px solid var(--border);
+               border-radius: 6px; padding: .7rem .9rem; margin-bottom: .4rem; }
+  .claim-row .text      { font-size: .85rem; flex: 1; line-height: 1.4; }
+  .claim-row .rationale { font-size: .73rem; color: var(--muted); margin-top: .2rem; }
+
+  /* ── 3D surface ── */
+  #plotly-surface { width: 100%; height: 520px; border-radius: 8px;
+                    border: 1px solid var(--border); }
+  .surface-controls { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: .8rem; }
+  .surface-controls > div { display: flex; flex-direction: column; gap: .3rem; }
+
+  /* ── status panel ── */
+  .status-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .6rem; }
+  .status-card { background: var(--bg2); border: 1px solid var(--border);
+                 border-radius: 8px; padding: .7rem .9rem; }
+  .status-card .pname { font-size: .85rem; font-weight: 700; margin-bottom: .3rem; }
+  .status-dot { display: inline-block; width: 8px; height: 8px;
+                border-radius: 50%; margin-right: .4rem; }
+  .dot-ok  { background: var(--c); }
+  .dot-warn { background: var(--s); }
+  .dot-err { background: var(--k); }
+
+  /* ── misc ── */
+  #plotly-surface { background: var(--bg2); }
+  .loading { color: var(--muted); font-size: .85rem; padding: 1rem 0;
+             animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+  .error { color: var(--k); font-size: .85rem; padding: .6rem;
+           background: #450a0a; border: 1px solid #991b1b; border-radius: 6px; }
+  .section-title { font-size: .8rem; color: var(--muted); text-transform: uppercase;
+                   letter-spacing: .08em; margin: 1.2rem 0 .6rem; }
+  .summary-box { background: var(--bg2); border: 1px solid var(--border);
+                 border-radius: 8px; padding: .9rem 1rem; font-size: .85rem;
+                 line-height: 1.6; }
+  .thermo-strip { display: flex; gap: .6rem; flex-wrap: wrap; margin: .6rem 0; }
+  .thermo-pill { background: var(--bg3); border: 1px solid var(--border);
+                 border-radius: 20px; padding: .2rem .7rem; font-size: .75rem; color: var(--muted); }
+  .thermo-pill span { color: var(--text); font-weight: 700; }
+  .gs-box { background: var(--bg2); border: 1px solid var(--border);
+            border-radius: 8px; padding: .8rem 1rem; margin-top: .6rem; }
+  .gs-box .gs-energy { font-size: 1.3rem; font-weight: 700; color: var(--c); }
+  .hidden { display: none !important; }
+  code { background: var(--bg3); padding: .1rem .3rem; border-radius: 3px; font-size: .85em; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MPC</h1>
+  <span>Metastable Propositional Calculus</span>
+  <div class="badge">v0.3</div>
+  <div id="status-indicator" style="margin-left:auto;font-size:.75rem;color:var(--muted)">
+    checking providers…
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="switchTab('analyse',this)">Analyse text</button>
+  <button onclick="switchTab('claims',this)">Read claims</button>
+  <button onclick="switchTab('surface3d',this)">3D Free Energy</button>
+  <button onclick="switchTab('landscape',this)">Energy landscape</button>
+  <button onclick="switchTab('matrix',this)">Compatibility matrix</button>
+  <button onclick="switchTab('budget',this)">Budget calculator</button>
+  <button onclick="switchTab('heatmap',this)">Historical Heatmap</button>
+  <button onclick="switchTab('providers',this)">Providers</button>
+  <button onclick="switchTab('about',this)">About</button>
+</nav>
+
+<!-- ══════════════════════════════════════════════ SHARED MODEL SELECTOR ══ -->
+<!-- Injected into each tab by buildModelSelector() -->
+
+<!-- ══════════════════════════════════════════════ TAB: analyse ══ -->
+<div id="tab-analyse" class="tab active">
+  <div id="sel-analyse"></div>
+  <label>Passage to analyse</label>
+  <textarea id="analyse-input" placeholder="Paste any text — argument, paper abstract, policy statement…"></textarea>
+  <button class="run" id="btn-analyse" onclick="runAnalyse()">Analyse →</button>
+  <div id="analyse-out"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════ TAB: claims ══ -->
+<div id="tab-claims" class="tab">
+  <div id="sel-claims"></div>
+  <label>Claims (one per line)</label>
+  <textarea id="claims-input" placeholder="All ravens are black.&#10;Some ravens have been observed to be albino.&#10;Observation is the only valid source of knowledge."></textarea>
+  <button class="run" id="btn-claims" onclick="runClaims()">Classify →</button>
+  <div id="claims-out"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════ TAB: 3D surface ══ -->
+<div id="tab-surface3d" class="tab">
+  <p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">
+    Run an analysis first. The surface plots F(T, E*) across temperature and budget
+    with the N_max Theorem 6.1 contour overlaid.
+  </p>
+  <div class="surface-controls">
+    <div><label>T range (k_BT)</label>
+      <div style="display:flex;gap:.4rem">
+        <input type="number" id="T-min" value="0.2" step="0.1" min="0.05" style="width:70px">
+        <span style="align-self:center;color:var(--muted)">–</span>
+        <input type="number" id="T-max" value="5" step="0.5" min="0.1" style="width:70px">
+      </div>
+    </div>
+    <div><label>E* range (k_BT)</label>
+      <div style="display:flex;gap:.4rem">
+        <input type="number" id="E-min" value="2"  step="1" min="1"  style="width:70px">
+        <input type="number" id="E-max" value="40" step="5" min="5"  style="width:70px">
+      </div>
+    </div>
+    <div><label>Grid resolution</label>
+      <select id="grid-res">
+        <option value="15">15×15 (fast)</option>
+        <option value="25" selected>25×25</option>
+        <option value="40">40×40 (slow)</option>
+      </select>
+    </div>
+    <button class="run" onclick="runSurface3D()" style="margin-top:0">Compute surface →</button>
+  </div>
+  <div id="plotly-surface"></div>
+  <div id="surface-out" style="margin-top:.6rem"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════ TAB: landscape ══ -->
+<div id="tab-landscape" class="tab">
+  <p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">
+    Run an analysis first. Each well = one hypothesis; depth = ΔE barrier.
+    Budget slider collapses suspended wells beyond the budget.
+  </p>
+  <div style="display:flex;gap:1rem;align-items:center;margin-bottom:.8rem;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:.5rem;flex:1">
+      <label style="margin:0;white-space:nowrap">E* budget</label>
+      <input type="range" id="budget-slider" min="0" max="20" step="0.1" value="20"
+             oninput="updateLandscape()" style="flex:1;accent-color:var(--accent)">
+      <span id="budget-val" style="font-size:.85rem;min-width:3ch">20</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:.5rem;flex:1">
+      <label style="margin:0;white-space:nowrap">Temperature</label>
+      <input type="range" id="temp-slider" min="0.1" max="5" step="0.1" value="1"
+             oninput="updateLandscape()" style="flex:1;accent-color:var(--accent)">
+      <span id="temp-val" style="font-size:.85rem;min-width:3ch">1.0</span>
+    </div>
+  </div>
+  <canvas id="landscape-canvas" height="320"
+    style="width:100%;border-radius:8px;display:block;border:1px solid var(--border);background:var(--bg2)"></canvas>
+  <div style="display:flex;gap:1rem;margin-top:.6rem;font-size:.75rem;flex-wrap:wrap">
+    <span><span class="chip chip-c">c</span> committed</span>
+    <span><span class="chip chip-s">s</span> suspended</span>
+    <span><span class="chip chip-k">k</span> conflict</span>
+    <span><span class="chip chip-r">r</span> reset</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ TAB: matrix ══ -->
+<div id="tab-matrix" class="tab">
+  <p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">
+    Run an analysis to populate the compatibility matrix.
+  </p>
+  <div id="matrix-out"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════ TAB: budget ══ -->
+<div id="tab-budget" class="tab">
+  <p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">
+    Theorem 6.1 bound: N_max = O(√(2E* / α ε_min d_avg)). No API call required.
+  </p>
+  <div class="grid2" style="max-width:560px">
+    <div><label>N (hypothesis count)</label><input type="number" id="b-N" value="8" min="1"></div>
+    <div><label>d_avg (avg constraint degree)</label><input type="number" id="b-davg" value="2.5" step="0.1" min="0"></div>
+    <div><label>ε_min (min frustration k_BT)</label><input type="number" id="b-emin" value="1.2" step="0.1" min="0"></div>
+    <div><label>α (substrate efficiency)</label><input type="number" id="b-alpha" value="1.0" step="0.05" min="0.01" max="1"></div>
+    <div><label>E* (budget k_BT)</label><input type="number" id="b-estar" value="20" min="1"></div>
+  </div>
+  <button class="run" onclick="runBudget()" style="margin-top:.8rem">Calculate →</button>
+  <div id="budget-out" style="margin-top:1.2rem"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════ TAB: heatmap ══ -->
+<div id="tab-heatmap" class="tab">
+  <div id="sel-heatmap"></div>
+  <p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">
+    Separate reasoning steps with a blank line. Historical depth (η_i) accumulates
+    as hypotheses are reused — warmer cells require more thermodynamic work to revise.
+  </p>
+  <label>Reasoning Sequence</label>
+  <textarea id="heatmap-input" placeholder="Step 1: The system temperature is rising.&#10;&#10;Step 2: If temperature rises, pressure increases.&#10;&#10;Step 3: The sensor is faulty. Temperature is not rising."></textarea>
+  <button class="run" id="btn-heatmap" onclick="runHeatmap()">Generate Heatmap →</button>
+  <div id="heatmap-out" style="margin-top:1.2rem"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════ TAB: providers ══ -->
+<div id="tab-providers" class="tab">
+  <p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">
+    Configure API keys for each provider. Keys are saved to <code>.env</code>
+    alongside the server and persist across restarts.
+    The environment variable names are shown for manual configuration.
+  </p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem;max-width:900px">
+
+    <!-- Anthropic -->
+    <div class="stat-box">
+      <div class="pname" style="color:#a78bfa">■ Anthropic</div>
+      <label style="margin-top:.7rem">API Key <span style="color:var(--muted)">(ANTHROPIC_API_KEY)</span></label>
+      <div style="display:flex;gap:.4rem;margin-bottom:.4rem">
+        <input type="password" id="cfg-anthropic" placeholder="sk-ant-…"
+               onblur="saveProviderKey('anthropic','ANTHROPIC_API_KEY',this)">
+        <button class="sm" onclick="refreshProvider('anthropic')">↻</button>
+      </div>
+      <div id="cfg-anthropic-status" style="font-size:.75rem;color:var(--muted)">—</div>
+    </div>
+
+    <!-- Google -->
+    <div class="stat-box">
+      <div class="pname" style="color:#34d399">■ Google Gemini</div>
+      <label style="margin-top:.7rem">API Key <span style="color:var(--muted)">(GOOGLE_API_KEY)</span></label>
+      <div style="display:flex;gap:.4rem;margin-bottom:.4rem">
+        <input type="password" id="cfg-google" placeholder="AIza…"
+               onblur="saveProviderKey('google','GOOGLE_API_KEY',this)">
+        <button class="sm" onclick="refreshProvider('google')">↻</button>
+      </div>
+      <div id="cfg-google-status" style="font-size:.75rem;color:var(--muted)">—</div>
+    </div>
+
+    <!-- OpenAI -->
+    <div class="stat-box">
+      <div class="pname" style="color:#38bdf8">■ OpenAI</div>
+      <label style="margin-top:.7rem">API Key <span style="color:var(--muted)">(OPENAI_API_KEY)</span></label>
+      <div style="display:flex;gap:.4rem;margin-bottom:.4rem">
+        <input type="password" id="cfg-openai" placeholder="sk-…"
+               onblur="saveProviderKey('openai','OPENAI_API_KEY',this)">
+        <button class="sm" onclick="refreshProvider('openai')">↻</button>
+      </div>
+      <div id="cfg-openai-status" style="font-size:.75rem;color:var(--muted)">—</div>
+    </div>
+
+    <!-- Kimi -->
+    <div class="stat-box">
+      <div class="pname" style="color:#fb923c">■ Kimi (Moonshot AI)</div>
+      <label style="margin-top:.7rem">API Key <span style="color:var(--muted)">(KIMI_API_KEY)</span></label>
+      <div style="display:flex;gap:.4rem;margin-bottom:.4rem">
+        <input type="password" id="cfg-kimi" placeholder="sk-…"
+               onblur="saveProviderKey('kimi','KIMI_API_KEY',this)">
+        <button class="sm" onclick="refreshProvider('kimi')">↻</button>
+      </div>
+      <div id="cfg-kimi-status" style="font-size:.75rem;color:var(--muted)">—</div>
+    </div>
+
+    <!-- Ollama -->
+    <div class="stat-box">
+      <div class="pname" style="color:#60a5fa">■ Ollama (Local)</div>
+      <label style="margin-top:.7rem">Host URL <span style="color:var(--muted)">(OLLAMA_HOST)</span></label>
+      <div style="display:flex;gap:.4rem;margin-bottom:.4rem">
+        <input type="text" id="cfg-ollama" value="http://localhost:11434"
+               onblur="saveProviderKey('ollama','OLLAMA_HOST',this)">
+        <button class="sm" onclick="refreshProvider('ollama')">↻</button>
+      </div>
+      <div id="cfg-ollama-status" style="font-size:.75rem;color:var(--muted)">—</div>
+    </div>
+  </div>
+  <button class="run" style="margin-top:1.2rem" onclick="checkAllProviders()">
+    Check all providers →
+  </button>
+  <div id="provider-status-out" style="margin-top:1rem"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════ TAB: about ══ -->
+<div id="tab-about" class="tab">
+  <div class="summary-box" style="max-width:680px;line-height:1.8">
+    <p style="margin-bottom:.8rem">
+      <strong>MPC v0.3</strong> — Metastable Propositional Calculus.
+      Five-provider model routing, FastMCP server, dynamic model lists, QuTiP
+      partition function, NetKet spin-glass solver.
+    </p>
+    <p style="margin-bottom:.8rem">Truth values (all energies in k_BT):</p>
+    <p style="margin-bottom:.4rem"><span class="chip chip-c">c</span> <strong>Committed</strong> — deep minimum. E &lt; E_c. ΔE ≫ k_BT.</p>
+    <p style="margin-bottom:.4rem"><span class="chip chip-s">s</span> <strong>Suspended</strong> — shallow minimum. Active maintenance required.</p>
+    <p style="margin-bottom:.4rem"><span class="chip chip-k">k</span> <strong>Conflict</strong> — no satisfying configuration. Structurally informative defect.</p>
+    <p style="margin-bottom:1rem"><span class="chip chip-r">r</span> <strong>Reset</strong> — zero potential. Maximally entropic prior.</p>
+    <p style="margin-bottom:.8rem">
+      <strong>Theorem 6.1:</strong> N_max = O(√(2E*/αε_min d_avg))<br>
+      <strong>Free energy:</strong> F = −kT ln Z (QuTiP exact or classical approx)<br>
+      <strong>Ground state:</strong> NetKet ED / brute-force / greedy heuristic<br>
+      <strong>Providers:</strong> Anthropic · Google · OpenAI · Kimi · Ollama
+    </p>
+    <p style="color:var(--muted);font-size:.8rem">
+      MCP tools: <code>compile_text</code> · <code>compile_sequence</code> ·
+      <code>read_claims</code> · <code>budget_estimate</code> · <code>list_available_models</code><br>
+      HTTP: <code>localhost:7771</code> · Entry point: <code>mpc-server</code>
+    </p>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════
+//  Global state
+// ════════════════════════════════════════════════════════════════════════
+let lastResult   = null;
+let _catalogue   = { anthropic:[], google:[], openai:[], kimi:[], ollama:[] };
+let _provider    = 'anthropic';  // currently selected provider
+
+const PROVIDER_COLORS = {
+  anthropic: '#a78bfa', google: '#34d399', openai: '#38bdf8',
+  kimi: '#fb923c', ollama: '#60a5fa',
+};
+const PROVIDER_LABELS = {
+  anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI',
+  kimi: 'Kimi', ollama: 'Ollama',
+};
+const KEY_FIELD = {   // payload key name per provider
+  anthropic: 'api_key', google: 'google_api_key',
+  openai: 'openai_api_key', kimi: 'kimi_api_key', ollama: 'ollama_host',
+};
+
+// ════════════════════════════════════════════════════════════════════════
+//  Tab switching
+// ════════════════════════════════════════════════════════════════════════
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'landscape' && lastResult) updateLandscape();
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  Server communication
+// ════════════════════════════════════════════════════════════════════════
+const BASE = 'http://localhost:7771';
+
+async function callServer(payload) {
+  const enriched = enrichPayload(payload);
+  const r = await fetch(BASE + '/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(enriched),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function enrichPayload(payload) {
+  const model = getSelectedModel();
+  const key   = getProviderKey(_provider);
+  return { ...payload, model, [KEY_FIELD[_provider]]: key, provider: _provider };
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  Provider / model selector  (injected per tab)
+// ════════════════════════════════════════════════════════════════════════
+const SELECTOR_TABS = ['analyse', 'claims', 'heatmap'];
+
+function buildAllSelectors() {
+  SELECTOR_TABS.forEach(t => buildModelSelector(`sel-${t}`));
+}
+
+function buildModelSelector(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  const provButtons = Object.keys(PROVIDER_LABELS).map(p => `
+    <button class="prov-btn${p === _provider ? ' active' : ''}" data-p="${p}"
+            onclick="selectProvider('${p}')">
+      ${PROVIDER_LABELS[p]}
+    </button>`).join('');
+
+  const modelOptions = (_catalogue[_provider] || [])
+    .map(m => `<option value="${m}">${m}</option>`).join('');
+
+  const isOllama     = _provider === 'ollama';
+  const keyLabel     = isOllama ? 'Ollama Host' : `${PROVIDER_LABELS[_provider]} API Key`;
+  const keyPlaceholder = isOllama ? 'http://localhost:11434'
+    : _provider === 'anthropic' ? 'sk-ant-…'
+    : _provider === 'google'    ? 'AIza…'
+    : 'sk-…';
+  const envVar = {
+    anthropic: 'ANTHROPIC_API_KEY', google: 'GOOGLE_API_KEY',
+    openai: 'OPENAI_API_KEY', kimi: 'KIMI_API_KEY', ollama: 'OLLAMA_HOST',
+  }[_provider];
+
+  el.innerHTML = `
+    <div class="provider-bar">
+      <span>Provider</span>
+      ${provButtons}
+    </div>
+    <div class="model-key-row">
+      <div class="model-col">
+        <label>Model</label>
+        <div style="display:flex;gap:.4rem">
+          <select id="model-select-${containerId}" style="flex:1">
+            ${modelOptions || '<option disabled>No models — add API key →</option>'}
+          </select>
+          <button class="refresh-btn" onclick="refreshModelsForCurrent()" title="Refresh model list">↻</button>
+        </div>
+      </div>
+      <div class="key-col">
+        <label>${keyLabel} <span style="color:var(--muted);font-size:.75em">(${envVar})</span></label>
+        <div class="key-inner">
+          <input type="${isOllama ? 'text' : 'password'}" id="key-${_provider}-${containerId}"
+                 placeholder="${keyPlaceholder}"
+                 oninput="syncProviderKeyInput('${_provider}', this)"
+                 onblur="persistKey('${envVar}', this)">
+          <span class="key-saved-badge" id="saved-${containerId}">saved ✓</span>
+        </div>
+        <div class="env-hint">Or set <code>${envVar}</code> in your environment</div>
+      </div>
+    </div>`;
+
+  // Restore any previously entered key
+  const stored = _storedKeys[_provider] || '';
+  const inp = document.getElementById(`key-${_provider}-${containerId}`);
+  if (inp && stored) inp.value = stored;
+}
+
+function rebuildAllSelectors() {
+  SELECTOR_TABS.forEach(t => buildModelSelector(`sel-${t}`));
+}
+
+// ── Provider selection ────────────────────────────────────────────────
+function selectProvider(p) {
+  _provider = p;
+  rebuildAllSelectors();
+  // Ensure models for this provider are loaded
+  if (!_catalogue[p] || !_catalogue[p].length) {
+    refreshModelsForCurrent();
+  }
+}
+
+// ── Model getter ──────────────────────────────────────────────────────
+function getSelectedModel() {
+  // Look in all selector tabs for the visible one
+  for (const t of SELECTOR_TABS) {
+    const sel = document.getElementById(`model-select-sel-${t}`);
+    if (sel && sel.closest('.tab.active')) return sel.value || '';
+  }
+  // Fallback: first one found
+  for (const t of SELECTOR_TABS) {
+    const sel = document.getElementById(`model-select-sel-${t}`);
+    if (sel && sel.value) return sel.value;
+  }
+  return 'claude-sonnet-4-6';
+}
+
+// ── Key management ────────────────────────────────────────────────────
+const _storedKeys = {};   // provider → key (session memory, not exposed)
+
+function getProviderKey(provider) {
+  return _storedKeys[provider] || '';
+}
+
+function syncProviderKeyInput(provider, input) {
+  _storedKeys[provider] = input.value;
+}
+
+async function persistKey(envVar, input) {
+  if (!input.value || input.value.length < 8) return;
+  try {
+    await fetch(BASE + '/setenv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key_name: envVar, key_value: input.value }),
+    });
+    // Show saved badge
+    const containerId = input.closest('[id^="sel-"]')?.id;
+    if (containerId) {
+      const badge = document.getElementById(`saved-${containerId}`);
+      if (badge) { badge.style.display = 'inline'; setTimeout(() => badge.style.display = 'none', 2000); }
+    }
+    // Trigger model refresh with the new key
+    await refreshModelsForCurrent();
+  } catch {}
+}
+
+// ── Model refresh ─────────────────────────────────────────────────────
+async function loadInitialCatalogue() {
+  try {
+    const r = await fetch(BASE + '/models');
+    if (r.ok) {
+      const data = await r.json();
+      Object.assign(_catalogue, data);
+    }
+  } catch {}
+  buildAllSelectors();
+  checkStatusQuietly();
+}
+
+async function refreshModelsForCurrent() {
+  const payload = { [`${_provider}_key`]: getProviderKey(_provider) };
+  if (_provider === 'ollama') payload.ollama_host = getProviderKey('ollama');
+  try {
+    const r = await fetch(BASE + '/models', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      Object.assign(_catalogue, data);
+      rebuildAllSelectors();
+    }
+  } catch {}
+}
+
+async function refreshProvider(p) {
+  const key = document.getElementById(`cfg-${p}`)?.value || '';
+  _storedKeys[p] = key;
+  const payload = { [`${p}_key`]: key };
+  try {
+    const r = await fetch(BASE + '/models', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      Object.assign(_catalogue, data);
+      const count = (data[p] || []).length;
+      const el = document.getElementById(`cfg-${p}-status`);
+      if (el) el.innerHTML = `<span style="color:var(--c)">✓ ${count} models</span>`;
+      rebuildAllSelectors();
+    }
+  } catch (e) {
+    const el = document.getElementById(`cfg-${p}-status`);
+    if (el) el.innerHTML = `<span style="color:var(--k)">${e.message}</span>`;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  Provider status tab
+// ════════════════════════════════════════════════════════════════════════
+async function checkAllProviders() {
+  const out = document.getElementById('provider-status-out');
+  out.innerHTML = '<p class="loading">Querying providers…</p>';
+
+  // Collect all keys from config tab
+  const payload = {};
+  ['anthropic','google','openai','kimi','ollama'].forEach(p => {
+    const v = document.getElementById(`cfg-${p}`)?.value || '';
+    if (v) { payload[`${p}_key`] = v; _storedKeys[p] = v; }
+  });
+
+  try {
+    const r = await fetch(BASE + '/models', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = r.ok ? await r.json() : {};
+    Object.assign(_catalogue, data);
+
+    let html = '<div class="status-grid">';
+    for (const [p, models] of Object.entries(data)) {
+      const ok = models.length > 0;
+      html += `<div class="status-card">
+        <div class="pname" style="color:${PROVIDER_COLORS[p] || 'var(--text)'}">
+          <span class="status-dot ${ok?'dot-ok':'dot-warn'}"></span>
+          ${PROVIDER_LABELS[p] || p}
+        </div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:.3rem">
+          ${ok ? `${models.length} models available` : 'No models — check API key'}
+        </div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:.2rem">
+          ${(models.slice(0,2)).join(', ')}${models.length>2?'…':''}
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+    out.innerHTML = html;
+    rebuildAllSelectors();
+  } catch (e) {
+    out.innerHTML = `<div class="error">⚠ ${e.message}</div>`;
+  }
+}
+
+async function saveProviderKey(provider, envVar, input) {
+  _storedKeys[provider] = input.value;
+  if (input.value && input.value.length >= 8) {
+    try {
+      await fetch(BASE + '/setenv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key_name: envVar, key_value: input.value }),
+      });
+      const el = document.getElementById(`cfg-${provider}-status`);
+      if (el) el.innerHTML = '<span style="color:var(--c)">✓ Key saved to .env</span>';
+    } catch {}
+    refreshProvider(provider);
+  }
+}
+
+async function checkStatusQuietly() {
+  try {
+    const r = await fetch(BASE + '/env');
+    if (!r.ok) return;
+    const data = await r.json();
+    const setCount = Object.values(data).filter(v => v === 'set').length;
+    const el = document.getElementById('status-indicator');
+    if (el) el.textContent = `${setCount}/5 providers configured`;
+  } catch {}
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  Rendering helpers
+// ════════════════════════════════════════════════════════════════════════
+const NAMES = { c:'Committed', s:'Suspended', k:'Conflict', r:'Reset' };
+function chip(p)      { return `<span class="chip chip-${p}">${p}</span>`; }
+function phaseChip(p) { return `<span class="chip chip-${p}">${NAMES[p]}</span>`; }
+function setLoading(el, msg='Analysing…') { el.innerHTML=`<p class="loading">${msg}</p>`; }
+function setError(el, msg) { el.innerHTML=`<div class="error">⚠ ${msg}</div>`; }
+
+// ════════════════════════════════════════════════════════════════════════
+//  ANALYSE TAB
+// ════════════════════════════════════════════════════════════════════════
+async function runAnalyse() {
+  const text = document.getElementById('analyse-input').value.trim();
+  if (!text) return;
+  const out = document.getElementById('analyse-out');
+  const btn = document.getElementById('btn-analyse');
+  btn.disabled = true;
+  setLoading(out);
+  try {
+    const data = await callServer({ action:'compile', text });
+    lastResult = data;
+    renderAnalyse(data, out);
+    renderMatrix(data, document.getElementById('matrix-out'));
+  } catch(e) { setError(out, e.message); }
+  finally { btn.disabled = false; }
+}
+
+function renderAnalyse(d, out) {
+  const em  = d.energy_model;
+  const bud = d.budget;
+  const pct = Math.round(em.budget_utilization * 100);
+  const barColor = pct > 80 ? 'var(--k)' : pct > 50 ? 'var(--s)' : 'var(--accent)';
+  const gs  = d.ground_state;
+
+  const thermoHtml = `
+    <div class="thermo-strip">
+      <div class="thermo-pill">Z = <span>${(em.partition_function||0).toFixed ? em.partition_function.toFixed(3) : em.partition_function}</span></div>
+      <div class="thermo-pill">F = <span>${em.free_energy} k_BT</span></div>
+      <div class="thermo-pill">S = <span>${em.entropy}</span></div>
+      <div class="thermo-pill">⟨E⟩ = <span>${em.thermal_energy} k_BT</span></div>
+      <div class="thermo-pill">backend: <span>${em.thermo_backend}</span></div>
+      <div class="thermo-pill">model: <span>${d.model_used || '—'}</span></div>
+    </div>`;
+
+  let gsHtml = '';
+  if (gs) {
+    gsHtml = `
+      <p class="section-title">Spin-glass ground state (${gs.backend})</p>
+      <div class="gs-box">
+        <div class="gs-energy">${gs.energy.toFixed(3)} k_BT</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">
+          Ground-state energy · stable subset: <strong style="color:var(--c)">${gs.stable_ids.join(', ') || 'none'}</strong>
+        </div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:.4rem">
+          ${gs.config.map((s,i) => `${d.hypotheses[i]?.id||i}: ${s===1?'↑':'↓'}`).join('  ')}
+        </div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:.6rem;font-style:italic">
+          Note: Ground state is an Ising-energy minimum, not a guarantee of logical feasibility.
+        </div>
+      </div>`;
+  }
+
+  let html = `
+    <p class="section-title">Summary</p>
+    <div class="summary-box">${d.analytical_summary}</div>
+    ${thermoHtml}
+    <p class="section-title">Energy model</p>
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.8rem">
+      <div class="stat-box">
+        <div class="val" style="color:${barColor}">${pct}%</div>
+        <div class="lbl">budget utilisation (E*=${em.E_star} k_BT)</div>
+        <div class="energy-bar-wrap" style="margin-top:.5rem">
+          <div class="energy-bar" style="width:${pct}%;background:${barColor}"></div>
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="val">${em.free_energy} k_BT</div>
+        <div class="lbl">free energy F = −kT ln Z</div>
+      </div>
+      <div class="stat-box">
+        <div class="val">${phaseChip(em.dominant_phase)}</div>
+        <div class="lbl">dominant phase</div>
+      </div>
+      <div class="stat-box">
+        <div class="val" style="color:${bud.margin>0?'var(--c)':'var(--k)'}">
+          ${bud.N_max != null ? bud.N_max.toFixed(1) : '∞'}
+        </div>
+        <div class="lbl">N_max (Theorem 6.1)</div>
+      </div>
+    </div>`;
+
+  if (d.k_states?.length) {
+    html += `<div class="error" style="margin-bottom:.8rem">
+      ⚡ Conflict states: ${d.k_states.join(', ')} — irreconcilable constraints held simultaneously.
+    </div>`;
+  }
+
+  html += gsHtml;
+  html += `<p class="section-title">Hypotheses (${d.hypotheses.length})</p>`;
+  for (const h of d.hypotheses) {
+    html += `
+      <div class="h-card">
+        <div class="h-id">${h.id}</div>
+        <div>
+          <div class="h-text">${h.text}</div>
+          <div class="h-rationale">${h.rationale}</div>
+          <div class="h-meta">
+            ${chip(h.phase)} ${phaseChip(h.phase)}
+            <span class="chip" style="background:var(--bg3);color:var(--muted);border:1px solid var(--border)">ΔE=${h.barrier_height.toFixed(1)} k_BT</span>
+            <span class="chip" style="background:var(--bg3);color:var(--muted);border:1px solid var(--border)">${h.linguistic_register}</span>
+          </div>
+        </div>
+        <div>${chip(h.phase)}</div>
+      </div>`;
+  }
+  out.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  CLAIMS TAB
+// ════════════════════════════════════════════════════════════════════════
+async function runClaims() {
+  const raw    = document.getElementById('claims-input').value;
+  const claims = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+  if (!claims.length) return;
+  const out = document.getElementById('claims-out');
+  const btn = document.getElementById('btn-claims');
+  btn.disabled = true;
+  setLoading(out, 'Classifying claims…');
+  try {
+    const data = await callServer({ action:'read_claims', claims });
+    let html = `<p class="section-title">Phase assignments</p>`;
+    for (const item of data) {
+      html += `
+        <div class="claim-row">
+          ${chip(item.phase)}
+          <div>
+            <div class="text">${item.claim}</div>
+            <div class="rationale">${phaseChip(item.phase)} · ${item.rationale}</div>
+          </div>
+        </div>`;
+    }
+    out.innerHTML = html;
+  } catch(e) { setError(out, e.message); }
+  finally { btn.disabled = false; }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  MATRIX TAB
+// ════════════════════════════════════════════════════════════════════════
+function renderMatrix(d, out) {
+  const hs = d.hypotheses;
+  if (!hs.length) { out.innerHTML=''; return; }
+  const ids = hs.map(h=>h.id);
+  const lookup = {};
+  for (const e of d.compatibility_matrix) {
+    lookup[`${e.hi}|${e.hj}`] = e;
+    lookup[`${e.hj}|${e.hi}`] = e;
+  }
+  let html = `<div class="matrix-wrap"><table><tr><th></th>`;
+  for (const id of ids) html += `<th>${id}</th>`;
+  html += '</tr>';
+  for (const ri of ids) {
+    html += `<tr><th>${ri}</th>`;
+    for (const ci of ids) {
+      if (ri===ci) { html+=`<td style="background:var(--bg3)">—</td>`; continue; }
+      const e = lookup[`${ri}|${ci}`];
+      if (!e) { html+=`<td style="color:var(--muted)">—</td>`; continue; }
+      const cls = e.compatible ? 'compat':'incompat';
+      html += `<td class="${cls}" title="ε=${e.epsilon} | ${NAMES[e.joint_phase]}">
+        ${chip(e.joint_phase)} ${e.epsilon.toFixed(1)}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</table></div>';
+  html += `<p style="font-size:.75rem;color:var(--muted);margin-top:.6rem">
+    Cell: joint phase · ε_ij frustration (k_BT).</p>`;
+  out.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  BUDGET TAB
+// ════════════════════════════════════════════════════════════════════════
+async function runBudget() {
+  const N      = parseFloat(document.getElementById('b-N').value);
+  const d_avg  = parseFloat(document.getElementById('b-davg').value);
+  const e_min  = parseFloat(document.getElementById('b-emin').value);
+  const alpha  = parseFloat(document.getElementById('b-alpha').value);
+  const e_star = parseFloat(document.getElementById('b-estar').value);
+  const out    = document.getElementById('budget-out');
+  setLoading(out, 'Computing…');
+  try {
+    const data = await callServer({
+      action:'budget_estimate', N, d_avg, epsilon_min:e_min, alpha, E_star:e_star,
+    });
+    const margin = data.margin;
+    const mc = margin>5?'var(--c)': margin>0?'var(--s)':'var(--k)';
+    out.innerHTML = `
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+        <div class="stat-box">
+          <div class="val">${typeof data.N_max==='number'?data.N_max.toFixed(1):'∞'}</div>
+          <div class="lbl">N_max (Theorem 6.1)</div>
+        </div>
+        <div class="stat-box">
+          <div class="val" style="color:${mc}">
+            ${typeof margin==='number'?(margin>0?'+':'')+margin.toFixed(1):'∞'}
+          </div>
+          <div class="lbl">margin (N_max − N)</div>
+        </div>
+      </div>
+      <div class="summary-box">${data.interpretation}</div>`;
+  } catch(e) { setError(out, e.message); }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  3D SURFACE TAB
+// ════════════════════════════════════════════════════════════════════════
+async function runSurface3D() {
+  const out = document.getElementById('surface-out');
+  if (!lastResult) { setError(out, 'Run an analysis first.'); return; }
+  setLoading(out, 'Computing free-energy surface…');
+  const nGrid = parseInt(document.getElementById('grid-res').value);
+  try {
+    const d    = lastResult;
+    const hyps = d.hypotheses;
+    const N    = hyps.length;
+    const ids  = hyps.map(h=>h.id);
+    const idx  = {};  ids.forEach((id,i) => idx[id]=i);
+    const mat  = Array.from({length:N}, ()=>new Array(N).fill(0));
+    for (const e of d.compatibility_matrix) {
+      if (e.hi in idx && e.hj in idx) {
+        mat[idx[e.hi]][idx[e.hj]] = e.epsilon;
+        mat[idx[e.hj]][idx[e.hi]] = e.epsilon;
+      }
+    }
+    const surfData = await callServer({ action:'free_energy_surface', epsilon_matrix:mat, N, n_T:nGrid, n_E:nGrid });
+    renderSurface3D(surfData);
+    out.innerHTML = '';
+  } catch(e) { setError(out, e.message); }
+}
+
+function renderSurface3D(s) {
+  const surfaceTrace = {
+    type:'surface', x:s.E_star, y:s.T, z:s.F,
+    colorscale:[[0,'#4ade80'],[0.4,'#6366f1'],[0.7,'#facc15'],[1,'#f87171']],
+    opacity:.9, name:'F(T, E*)',
+    colorbar:{title:'F (k_BT)',tickfont:{color:'#e2e6f0'},titlefont:{color:'#e2e6f0'}},
+    hovertemplate:'E*=%{x:.1f}<br>T=%{y:.2f}<br>F=%{z:.3f} k_BT<extra></extra>',
+  };
+  const nMaxTrace = {
+    type:'surface', x:s.E_star, y:s.T,
+    z:s.N_max.map(row=>row.map(v=>Math.min(v,30))),
+    opacity:.35, colorscale:[[0,'#ffffff30'],[1,'#ffffffcc']],
+    showscale:false, name:'N_max (Theorem 6.1)',
+    hovertemplate:'E*=%{x:.1f}<br>T=%{y:.2f}<br>N_max=%{z:.1f}<extra></extra>',
+  };
+  const layout = {
+    paper_bgcolor:'#0f1117', plot_bgcolor:'#0f1117',
+    scene:{
+      xaxis:{title:'E* (k_BT)',color:'#7a82a8',gridcolor:'#2e3250'},
+      yaxis:{title:'Temperature T',color:'#7a82a8',gridcolor:'#2e3250'},
+      zaxis:{title:'F (k_BT)',color:'#7a82a8',gridcolor:'#2e3250'},
+      bgcolor:'#0f1117',camera:{eye:{x:1.5,y:1.5,z:1}},
+    },
+    font:{color:'#e2e6f0',family:"'JetBrains Mono',monospace"},
+    margin:{l:0,r:0,t:40,b:0},
+    title:{text:'Free Energy F(T, E*) · N_max contour',font:{color:'#e2e6f0',size:13}},
+    legend:{font:{color:'#e2e6f0'}},
+  };
+  Plotly.react('plotly-surface',[surfaceTrace,nMaxTrace],layout,{responsive:true,displayModeBar:true});
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  LANDSCAPE CANVAS
+// ════════════════════════════════════════════════════════════════════════
+function updateLandscape() {
+  document.getElementById('budget-val').textContent =
+    parseFloat(document.getElementById('budget-slider').value).toFixed(1);
+  document.getElementById('temp-val').textContent =
+    parseFloat(document.getElementById('temp-slider').value).toFixed(1);
+  drawLandscape();
+}
+
+function drawLandscape() {
+  const canvas = document.getElementById('landscape-canvas');
+  const ctx    = canvas.getContext('2d');
+  const W = canvas.width = canvas.offsetWidth;
+  const H = canvas.height = 320;
+  const budgetFrac = parseFloat(document.getElementById('budget-slider').value) / 20;
+  const temperature = parseFloat(document.getElementById('temp-slider').value);
+  const hypotheses  = lastResult ? lastResult.hypotheses : [];
+  ctx.fillStyle = '#0f1117'; ctx.fillRect(0,0,W,H);
+  if (!hypotheses.length) {
+    ctx.fillStyle='#7a82a8'; ctx.font='14px monospace'; ctx.textAlign='center';
+    ctx.fillText('Run an analysis to populate the landscape.', W/2, H/2);
+    return;
+  }
+  const groundY = H - 60;
+  ctx.strokeStyle='#2e3250'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,groundY); ctx.lineTo(W,groundY); ctx.stroke();
+  const eStarY = groundY - 80*budgetFrac;
+  ctx.strokeStyle='#6366f150'; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(0,eStarY); ctx.lineTo(W,eStarY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#6366f1'; ctx.font='11px monospace'; ctx.textAlign='left';
+  ctx.fillText(`E* = ${(budgetFrac*20).toFixed(1)} k_BT`, 8, eStarY-4);
+  const N = hypotheses.length, slotW = W/N;
+  const phaseCols = {c:'#4ade80',s:'#facc15',k:'#f87171',r:'#94a3b8'};
+  for (let i=0;i<N;i++) {
+    const h=hypotheses[i], cx=slotW*i+slotW/2;
+    let ep=h.phase;
+    if (h.phase==='s'&&h.holding_cost>budgetFrac*20*0.4) ep='k';
+    const barH=Math.min(h.barrier_height*18,groundY-40), wellW=Math.max(slotW*0.55,30);
+    const wellDepth=ep==='r'?4:Math.max(barH*0.4,10), col=phaseCols[ep];
+    if (ep==='k'){const glow=ctx.createRadialGradient(cx,groundY,0,cx,groundY,wellW);
+      glow.addColorStop(0,'#f8717130');glow.addColorStop(1,'transparent');
+      ctx.fillStyle=glow;ctx.beginPath();ctx.ellipse(cx,groundY,wellW,20,0,0,Math.PI*2);ctx.fill();}
+    ctx.beginPath();const wl=cx-wellW/2,wr=cx+wellW/2;
+    ctx.moveTo(wl,groundY-barH);ctx.lineTo(wl,groundY+wellDepth);
+    ctx.quadraticCurveTo(cx,groundY+wellDepth*1.6,wr,groundY+wellDepth);
+    ctx.lineTo(wr,groundY-barH);
+    ctx.strokeStyle=col;ctx.lineWidth=ep==='k'?2:1.5;ctx.stroke();
+    const grad=ctx.createLinearGradient(cx,groundY-barH,cx,groundY+wellDepth);
+    grad.addColorStop(0,col+'00');grad.addColorStop(1,col+'22');
+    ctx.fillStyle=grad;ctx.fill();
+    const jitter=(Math.random()-.5)*temperature*4;
+    ctx.beginPath();ctx.arc(cx+jitter,groundY+wellDepth*.5+jitter*.3,ep==='k'?5:4,0,Math.PI*2);
+    ctx.fillStyle=col;ctx.fill();
+    if(ep!=='r'){ctx.fillStyle=col+'cc';ctx.font='9px monospace';ctx.textAlign='right';
+      ctx.fillText(`ΔE=${h.barrier_height.toFixed(1)}`,wl-2,groundY-barH+10);}
+    ctx.fillStyle=col;ctx.font='11px monospace';ctx.textAlign='center';
+    ctx.fillText(h.id,cx,groundY+22);
+    ctx.fillStyle='#7a82a8';ctx.font='9px monospace';ctx.fillText(ep.toUpperCase(),cx,groundY+34);
+  }
+}
+
+let _animFrame = null;
+function startLandscapeAnimation() {
+  function frame() {
+    if (document.getElementById('tab-landscape').classList.contains('active') && lastResult)
+      drawLandscape();
+    _animFrame = requestAnimationFrame(frame);
+  }
+  if (!_animFrame) frame();
+}
+startLandscapeAnimation();
+
+// ════════════════════════════════════════════════════════════════════════
+//  HEATMAP TAB
+// ════════════════════════════════════════════════════════════════════════
+async function runHeatmap() {
+  const raw   = document.getElementById('heatmap-input').value;
+  const texts = raw.split(/\n\s*\n/).map(s=>s.trim()).filter(Boolean);
+  if (!texts.length) return;
+  const out = document.getElementById('heatmap-out');
+  const btn = document.getElementById('btn-heatmap');
+  btn.disabled = true;
+  setLoading(out, 'Analysing sequential historical depth…');
+  try {
+    const data = await callServer({ action:'compile_sequence', texts });
+    renderHeatmap(data, out);
+  } catch(e) { setError(out, e.message); }
+  finally { btn.disabled = false; }
+}
+
+function renderHeatmap(data, out) {
+  if (!data.steps?.length) { out.innerHTML=''; return; }
+  const ledger = data.ledger || {};
+  const allIds = new Set(Object.keys(ledger));
+  data.steps.forEach(s => Object.keys(s.eta_matrix).forEach(id => allIds.add(id)));
+  const ids = [...allIds].sort();
+  let html = `<div class="matrix-wrap"><table><tr><th style="text-align:left;width:30%">Step</th>`;
+  ids.forEach(id => {
+    const snippet = ledger[id]?.text ? ledger[id].text.substring(0,25)+'…' : '';
+    html += `<th title="${ledger[id]?.text||''}">${id}<br><span style="font-size:.7em;font-weight:normal;color:var(--muted)">${snippet}</span></th>`;
+  });
+  html += '</tr>';
+  data.steps.forEach(step => {
+    html += `<tr><td style="text-align:left;font-size:.8rem"><strong>${step.step_index+1}</strong>: ${step.text.substring(0,60)}${step.text.length>60?'…':''}</td>`;
+    ids.forEach(id => {
+      const val = step.eta_matrix[id] || 0;
+      const hyp = step.result.hypotheses.find(h=>h.id===id);
+      const phase = hyp?.phase || null;
+      const intensity = Math.min(val/10,1);
+      const r=Math.round(248*intensity+34*(1-intensity));
+      const g=Math.round(113*intensity+38*(1-intensity));
+      const b2=Math.round(113*intensity+58*(1-intensity));
+      const bg=val>0?`rgb(${r},${g},${b2})`:'var(--bg3)';
+      html += `<td style="background:${bg};color:${val>0?'#fff':'var(--muted)'};font-weight:${val>0?'bold':'normal'};vertical-align:middle;font-size:.78rem">
+        ${val>0?val.toFixed(1):'—'}${phase?` <span class="chip chip-${phase}" style="padding:.05rem .3rem;font-size:.6rem;float:right">${phase}</span>`:''}
+      </td>`;
+    });
+    html += '</tr>';
+  });
+  html += `</table></div>
+    <p style="font-size:.75rem;color:var(--muted);margin-top:.6rem">
+    Warmer = deeper historical embedding (higher η_i). Revision requires more thermodynamic work.
+    Phase badges show the entity's MPC state in that step.</p>`;
+  out.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  Init
+// ════════════════════════════════════════════════════════════════════════
+loadInitialCatalogue();
+</script>
+</body>
+</html>

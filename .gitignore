@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+aggregate.py
+context.toml
+context_*.txt
