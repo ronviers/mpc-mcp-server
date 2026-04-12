@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mpc-mcp-server"
-version = "0.3.1"
+version = "0.3.2"
 description = "Metastable Propositional Calculus — thermodynamic framework for resource-bounded inference"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.1.2"
+requires-python = ">=3.12"
 
 dependencies = [
     # ── MCP framework ─────────────────────────────────────────────────────────
