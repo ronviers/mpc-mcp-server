@@ -61,18 +61,7 @@ _UI_PORT    = 7771
 #  FastMCP application
 # ═══════════════════════════════════════════════════════════════════════════════
 
-mcp = FastMCP(
-    name="mpc",
-    description=(
-        "Metastable Propositional Calculus (MPC) engine. "
-        "Analyzes the thermodynamic and physical feasibility of logical assertions "
-        "across multi-step reasoning. Unlike standard Boolean logic, MPC detects "
-        "'epistemic drift' and structural conflicts (k-states) by calculating the "
-        "energetic holding costs of maintaining premises over time. "
-        "Use this to rigorously verify whether a complex sequence of claims can be "
-        "logically maintained together without collapsing into contradiction."
-    ),
-)
+mcp = FastMCP("mpc")
 
 # ── Tool: compile_text ────────────────────────────────────────────────────────
 
