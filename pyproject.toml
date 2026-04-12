@@ -7,7 +7,7 @@ name = "mpc-mcp-server"
 version = "0.3.0"
 description = "Metastable Propositional Calculus — thermodynamic framework for resource-bounded inference"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 requires-python = ">=3.11"
 
 dependencies = [
