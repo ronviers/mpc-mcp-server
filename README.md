@@ -6,6 +6,16 @@ Truth values: **c** (committed) · **s** (suspended) · **k** (conflict) · **r*
 
 ---
 
+## Theory & Background
+
+To successfully use this tool, it helps to understand the theoretical foundation of MPC. The framework models propositions as systems resting in a latent energy landscape rather than as instantaneous, costless Boolean states. For a detailed explanation of the physics, mathematics, and logic driving the engine, please review the foundational project artifacts:
+
+* [Metastable Propositional Calculus (MPC) as a Thermodynamic Extension — Part 1](https://claude.ai/public/artifacts/a87cfcb6-66c9-49a7-b026-02384e7fe0c9)
+* [Metastable Propositional Calculus (MPC) as a Thermodynamic Extension — Part 2](https://claude.ai/public/artifacts/4665e0aa-b7e8-47fd-96c1-4d233b2c2b44)
+* [Metastable Propositional Calculus (MPC) as a Thermodynamic Extension — Part 3](https://claude.ai/public/artifacts/d841dd3b-88d5-4fb7-8bf6-2fb8d15ca4ce)
+
+---
+
 ## What's new in v0.3
 
 | Feature | Detail |
